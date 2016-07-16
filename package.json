@@ -1,0 +1,10 @@
+{
+  "name": "vdu",
+  "version": "0.0.1",
+  "description": "An example module to illustrate the usage of a package.json",
+  "author": "Your Name <you.name@example.org>",
+  "dependencies": {
+    "aframe": "^0.2.0",
+    "jquery": "^2.2.3"
+  }
+}
