@@ -4,7 +4,8 @@
   "description": "An example module to illustrate the usage of a package.json",
   "author": "vincent du",
   "dependencies": {
-    "express": "^4.14.0"
+    "express": "^4.14.0",
+    "watson-developer-cloud": "^1.12.2"
   },
   "main": "index.js",
   "devDependencies": {},
