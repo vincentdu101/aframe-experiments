@@ -21,18 +21,20 @@ var Microphone = (function(){
 	var bufferSize = 2048;
 	var recorder;
 
-	if (!getUserMedia) {
-		getUserMedia = navigator.mediaDevices.getUserMedia ||
-		navigator.webkitGetUserMedia || navigator.mozGetUserMedia ||
-		navigator.msGetUserMedia;
-	}
+	function startRecording() {
+		if (!getUserMedia) {
+			getUserMedia = navigator.mediaDevices.getUserMedia ||
+			navigator.webkitGetUserMedia || navigator.mozGetUserMedia ||
+			navigator.msGetUserMedia;
+		}
 
-	if (navigator.webkitGetUserMedia) {
-		navigator.webkitGetUserMedia({audio: true}, micSuccess, function(e){
-			alert("error capturing audio");
-		});
-	} else {
-		alert("getUserMedia not supported in this browser");
+		if (navigator.webkitGetUserMedia) {
+			navigator.webkitGetUserMedia({audio: true}, micSuccess, function(e){
+				alert("error capturing audio");
+			});
+		} else {
+			alert("getUserMedia not supported in this browser");
+		}
 	}
 
 	function micSuccess(e) {
@@ -50,7 +52,6 @@ var Microphone = (function(){
 		audioInput.connect(volume);
 
     	recorder.onaudioprocess = function(e) {
-    		console.log("recording");
     		var left = e.inputBuffer.getChannelData(0);
     		var right = e.inputBuffer.getChannelData(1);
 
@@ -63,6 +64,7 @@ var Microphone = (function(){
     	// we connect the recorder
     	volume.connect(recorder);
     	recorder.connect(context.destination);
+    	startExporting();
 	}
 
 	function mergeBuffers(channelBuffer, recordingLength) {
@@ -97,57 +99,63 @@ var Microphone = (function(){
 		}
 	}
 
-	setTimeout(function(){
-		if (leftChannel.length > 0 && rightChannel.length > 0) {
-			// we flat the left and right channels down
-			var leftBuffer = mergeBuffers(leftChannel, recordingLength);
-			var rightBuffer = mergeBuffers(rightChannel, recordingLength);
+	function startExporting() {
+		setTimeout(function(){
+			if (leftChannel.length > 0 && rightChannel.length > 0) {
+				// we flat the left and right channels down
+				var leftBuffer = mergeBuffers(leftChannel, recordingLength);
+				var rightBuffer = mergeBuffers(rightChannel, recordingLength);
 
-			// we interleave both channels together
-			var interleaved = interleave(leftBuffer, rightBuffer);
+				// we interleave both channels together
+				var interleaved = interleave(leftBuffer, rightBuffer);
 
-			// create the buffer and view to create the .wav file
-			var buffer = new ArrayBuffer(44 + interleaved.length * 2);
-			var view = new DataView(buffer);
+				// create the buffer and view to create the .wav file
+				var buffer = new ArrayBuffer(44 + interleaved.length * 2);
+				var view = new DataView(buffer);
 
-			// write the WAV container, check spec at: https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
-			// RIFF chunk descriptor
-			writeUTFBytes(view, 0, "RIFF");
-			view.setUint32(4, 44 + interleaved.length * 2, true);
-			writeUTFBytes(view, 8, "WAVE");
+				// write the WAV container, check spec at: https://ccrma.stanford.edu/courses/422/projects/WaveFormat/
+				// RIFF chunk descriptor
+				writeUTFBytes(view, 0, "RIFF");
+				view.setUint32(4, 44 + interleaved.length * 2, true);
+				writeUTFBytes(view, 8, "WAVE");
 
-			// FMT sub-chunk
-			writeUTFBytes(view, 12, "fmt ");
-			view.setUint32(16, 16, true);
-			view.setUint16(20, 1, true);
+				// FMT sub-chunk
+				writeUTFBytes(view, 12, "fmt ");
+				view.setUint32(16, 16, true);
+				view.setUint16(20, 1, true);
 
-			// stereo (2 channels)
-			view.setUint16(22, 2, true);
-			view.setUint32(24, sampleRate, true);
-			view.setUint32(28, sampleRate * 4, true);
-			view.setUint16(32, 4, true);
-			view.setUint16(34, 16, true);
+				// stereo (2 channels)
+				view.setUint16(22, 2, true);
+				view.setUint32(24, sampleRate, true);
+				view.setUint32(28, sampleRate * 4, true);
+				view.setUint16(32, 4, true);
+				view.setUint16(34, 16, true);
 
-			// data sub-chunk
-			writeUTFBytes(view, 36, "data");
-			view.setUint32(40, interleaved.length * 2, true);
+				// data sub-chunk
+				writeUTFBytes(view, 36, "data");
+				view.setUint32(40, interleaved.length * 2, true);
 
-			// write the pcm samples
-			var lng = interleaved.length; 
-			var index = 44; 
-			var volume = 1;
-			for (var i = 0; i < lng; i++) {
-				view.setUint16(index, interleaved[i] * (0x7FFF * volume), true);
-				index += 2;
+				// write the pcm samples
+				var lng = interleaved.length; 
+				var index = 44; 
+				var volume = 1;
+				for (var i = 0; i < lng; i++) {
+					view.setUint16(index, interleaved[i] * (0x7FFF * volume), true);
+					index += 2;
+				}
+
+				// our final binary blob that we can hand off
+				var blob = new Blob([view], {type: "audio/wav"});
+				var url = URL.createObjectURL(blob);
+				window.open(url);
+				leftChannel = [];
+				rightChannel = [];
 			}
+		}, 5000);
+	}
 
-			// our final binary blob that we can hand off
-			var blob = new Blob([view], {type: "audio/wav"});
-			var url = URL.createObjectURL(blob);
-			window.open(url);
-			leftChannel = [];
-			rightChannel = [];
-		}
-	}, 5000);
+	return {
+		startRecording: startRecording
+	};
 
 }());

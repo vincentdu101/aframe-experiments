@@ -5,6 +5,7 @@
   "author": "Your Name <you.name@example.org>",
   "dependencies": {
     "aframe": "^0.2.0",
+    "bootstrap": "^3.3.6",
     "jquery": "^2.2.3"
   }
 }
